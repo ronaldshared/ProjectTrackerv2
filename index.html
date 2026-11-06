@@ -620,6 +620,46 @@ body.gantt-linking,body.gantt-linking *{cursor:crosshair!important;user-select:n
 #proj-name:focus-visible,.form-group input:focus-visible,.form-group select:focus-visible,.form-group textarea:focus-visible,.pt-search:focus-visible,.pt-select:focus-visible,.status-date-input:focus-visible{outline:2px solid var(--accent-ink);outline-offset:1px}
 #proj-name:focus-visible{border-radius:4px}
 @media (prefers-contrast:more){:root{--border:var(--border2)}}
+
+/* ═══════════ V4.1 – Formulario de tarea amplio ═══════════ */
+/* Escritorio: diálogo ancho y campos en dos columnas */
+#modal:has(#task-fields){width:min(1040px,94vw);max-height:94vh}
+#modal:has(#task-fields) #task-fields:not([style*="none"]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px;align-items:start}
+#modal:has(#task-fields) #task-fields>*{min-width:0}
+#modal:has(#task-fields) #task-fields>.form-row.full,
+#modal:has(#task-fields) #task-fields>.chk-row,
+#modal:has(#task-fields) #task-fields>.wbs-help,
+#modal:has(#task-fields) #task-fields>div:not(.form-row){grid-column:1/-1}
+#modal:has(#task-fields) .modal-actions{position:sticky;bottom:-24px;background:var(--surface);padding:12px 0 4px;margin-top:8px;border-top:1px solid var(--border);z-index:2}
+
+/* Predecesoras: dos paneles con altura ajustable */
+.deps-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:8px}
+.deps-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.deps-box{position:relative;resize:vertical;overflow:hidden;min-height:90px;max-height:70vh;border:1px solid var(--border2);border-radius:7px;background:var(--surface2)}
+.deps-box select{width:100%;border:0;border-radius:0;background:transparent;padding:4px;margin:0;overflow-y:auto}
+.deps-box select option{padding:6px 8px;border-radius:4px;white-space:normal}
+.deps-search{height:34px}
+.deps-count{font-size:11px;color:var(--text2)}
+
+/* Tablet vertical y pantallas medianas: una columna dentro del formulario */
+@media (max-width:900px){
+  #modal:has(#task-fields){width:min(760px,96vw)}
+  #modal:has(#task-fields) #task-fields:not([style*="none"]){grid-template-columns:minmax(0,1fr)}
+  .deps-grid{grid-template-columns:minmax(0,1fr)}
+}
+/* Móvil: pantalla completa (ya definido arriba); listas con buen tamaño táctil */
+@media (max-width:600px){
+  #modal:has(#task-fields){width:100vw;max-width:100vw;max-height:100%}
+  #modal:has(#task-fields) .modal-actions{bottom:calc(-14px - env(safe-area-inset-bottom));border-top:0}
+  .deps-box{height:200px!important;resize:none}
+  .deps-box select option{padding:10px 8px;font-size:16px}
+  .deps-search{height:42px;font-size:16px}
+}
+@media (max-height:520px) and (orientation:landscape){.deps-box{height:140px!important}}
+
+#modal:has(#task-fields) .chk-row{margin:2px 0 14px}
+#modal:has(#task-fields) #as-block.as-wide{margin:0 0 14px}
+#modal:has(#task-fields) #as-block.as-wide #as-rows{max-width:620px}
 </style>
 </head>
 <body>
@@ -811,6 +851,7 @@ body.gantt-linking,body.gantt-linking *{cursor:crosshair!important;user-select:n
 <!-- CONTEXT MENU -->
 <div id="ctx-menu">
   <div class="ctx-item" onclick="ctxEdit()">✏️ Editar</div>
+  <div class="ctx-item" onclick="PTInsert.above(state.ctxTaskId)">➕ Agregar tarea arriba</div>
   <div class="ctx-item" onclick="ctxIndent()">→ Convertir en hija</div>
   <div class="ctx-item" onclick="ctxOutdent()">← Subir de nivel</div>
   <div class="ctx-item" onclick="ctxMoveUp()">↑ Subir rama</div>
@@ -2627,8 +2668,8 @@ function showCtx(e,id){
   e.preventDefault(); state.ctxTaskId=id;
   const m=document.getElementById('ctx-menu');
   m.style.display='block';
-  m.style.left=Math.min(e.clientX,window.innerWidth-165)+'px';
-  m.style.top=Math.min(e.clientY,window.innerHeight-210)+'px';
+  m.style.left=Math.max(4,Math.min(e.clientX,window.innerWidth-m.offsetWidth-6))+'px';
+  m.style.top=Math.max(4,Math.min(e.clientY,window.innerHeight-m.offsetHeight-6))+'px';
 }
 document.addEventListener('click',()=>{ document.getElementById('ctx-menu').style.display='none'; });
 function ctxEdit(){ openTaskModal(state.ctxTaskId); }
@@ -3348,7 +3389,7 @@ const PTHierarchy=(()=>{
     return state.tasks;
   }
   function parentOptions(taskId){
-    const blocked=new Set([taskId,...descendants(taskId).map(t=>t.id)].filter(Boolean));
+    const blocked=taskId?new Set([taskId,...descendants(taskId).map(t=>t.id)]):new Set();   // tarea nueva: no hay nada que bloquear
     return state.tasks.filter(t=>!blocked.has(t.id)).map(t=>`<option value="${escHtml(t.id)}">${'　'.repeat(Math.max(0,(t.outlineLevel||1)-1))}${escHtml(t.wbs||'')} ${escHtml(t.name||'')}</option>`).join('');
   }
   function pathFor(id){const parts=[];let t=byId(id);const guard=new Set();while(t&&!guard.has(t.id)){guard.add(t.id);parts.unshift(`${t.wbs||''} ${t.name||''}`.trim());t=t.parentId?byId(t.parentId):null;}return parts.join(' › ');}
@@ -5126,6 +5167,167 @@ const PTExport = (() => {
   }
   window.addEventListener('afterprint', cleanupPrint);
   return { svg, pages, downloadSVG, downloadPNG, pngBlob, downloadXML, print, preparePrint, cleanupPrint, model };
+})();
+</script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   PTInsert – «Agregar tarea arriba» (menú contextual)
+   Abre el formulario de tarea nueva con el mismo padre que la tarea elegida y,
+   al guardar, coloca la tarea justo encima de ella (mismo nivel).
+   Si se cancela el formulario no se crea nada.
+   Depende de: state, openTaskModal, saveTask, closeModal, renderAll, PTHierarchy (opcional).
+   ═══════════════════════════════════════════════════════════════ */
+const PTInsert = (() => {
+  'use strict';
+  let pending = null;   // { beforeId }
+  let opening = false;  // true solo mientras above() abre el formulario
+
+  function above(id) {
+    const target = state.tasks.find(t => t.id === id);
+    if (!target) return false;
+    opening = true;
+    try { openTaskModal(); } finally { opening = false; }   // formulario de tarea nueva
+    pending = { beforeId: id };
+    const sel = document.getElementById('f-parent');   // el módulo de jerarquía lo agrega
+    if (sel) { sel.value = target.parentId || ''; sel.dispatchEvent(new Event('change')); }
+    const title = document.querySelector('#modal-body .modal-title');
+    if (title) title.textContent = '➕ Nueva tarea arriba de «' + (target.name || '') + '»';
+    const nm = document.getElementById('f-name');
+    if (nm) nm.focus();
+    return true;
+  }
+
+  function install() {
+    const saveBase = saveTask;
+    saveTask = function (id) {
+      const mine = !id && pending ? pending : null;    // se captura: closeModal() limpia `pending`
+      const before = new Set(state.tasks.map(t => t.id));
+      const r = saveBase.apply(this, arguments);
+      if (!mine || document.getElementById('modal-overlay').classList.contains('open')) return r;   // validación fallida
+      const created = state.tasks.find(t => !before.has(t.id));
+      const target = state.tasks.find(t => t.id === mine.beforeId);
+      if (created && target) {
+        created.parentId = target.parentId || null;
+        created.sortOrder = (target.sortOrder != null ? target.sortOrder : state.tasks.indexOf(target) + 1) - 0.5;
+        if (typeof PTHierarchy !== 'undefined') PTHierarchy.recalc();
+        else {   // sin jerarquía: inserta en el arreglo
+          state.tasks = state.tasks.filter(t => t !== created);
+          state.tasks.splice(state.tasks.indexOf(target), 0, created);
+        }
+        state.selectedTaskId = created.id;
+        renderAll();
+      }
+      return r;
+    };
+    const closeBase = closeModal;
+    closeModal = function (e) { const r = closeBase.apply(this, arguments); if (!document.getElementById('modal-overlay').classList.contains('open')) pending = null; return r; };
+    // Cualquier otra apertura del formulario (botón «Agregar», editar) descarta la inserción pendiente
+    const openBase = openTaskModal;
+    openTaskModal = function (id) { if (!opening) pending = null; return openBase.apply(this, arguments); };
+  }
+
+  install();
+  return { above };
+})();
+</script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   PTModalLayout – formulario de tarea más amplio
+   - Sección de predecesoras en dos paneles (actuales | agregar), con buscador,
+     contador y altura ajustable arrastrando la esquina inferior derecha.
+   El ancho del diálogo y la rejilla de campos los define css/app.css (bloque V4.1).
+   Depende de: openTaskModal. No cambia ids ni valores: saveTask lee los mismos <select>.
+   ═══════════════════════════════════════════════════════════════ */
+const PTModalLayout = (() => {
+  'use strict';
+
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  // Envuelve un <select multiple> en una caja redimensionable
+  function box(select, height) {
+    const b = document.createElement('div');
+    b.className = 'deps-box';
+    b.style.height = height + 'px';
+    select.parentNode.insertBefore(b, select);
+    b.appendChild(select);
+    select.removeAttribute('size');
+    select.style.height = '100%';
+    return b;
+  }
+
+  // «Recursos asignados» (módulo del plan) se inserta dentro de la fila Responsable/Prioridad y la desordena:
+  // se saca a su propia fila de ancho completo.
+  function placeAssignments() {
+    const blk = document.getElementById('as-block'); if (!blk) return;
+    const pct = document.getElementById('f-pct'), pctRow = pct && pct.closest('.form-row');
+    if (pctRow && pctRow.parentNode) pctRow.parentNode.insertBefore(blk, pctRow);      // antes de % avance / estado
+    else { const row = blk.closest('.form-row'); if (!row || !row.parentNode) return; row.parentNode.insertBefore(blk, row.nextSibling); }
+    blk.classList.add('as-wide');
+  }
+
+  function enhance() {
+    placeAssignments();
+    const cur = document.getElementById('f-deps'), add = document.getElementById('f-deps-add');
+    if (!cur || !add || document.getElementById('deps-grid')) return;
+    const group = cur.closest('.form-group');
+    if (!group) return;
+    const labels = group.querySelectorAll(':scope > label');
+    const curNote = cur.nextElementSibling;                 // texto de ayuda de la lista actual
+    const hint = document.getElementById('deps-hint');
+
+    const grid = document.createElement('div'); grid.id = 'deps-grid'; grid.className = 'deps-grid';
+    const c1 = document.createElement('div'); c1.className = 'deps-col';
+    const c2 = document.createElement('div'); c2.className = 'deps-col';
+    grid.append(c1, c2);
+    group.insertBefore(grid, labels[0]);
+
+    // Columna 1: predecesoras actuales
+    c1.appendChild(labels[0]);
+    const hasCurrent = [...cur.options].some(o => !o.disabled);
+    c1.appendChild(box(cur, hasCurrent ? 220 : 90));
+    if (curNote) c1.appendChild(curNote);
+
+    // Columna 2: candidatas, con buscador
+    c2.appendChild(labels[1]);
+    const search = document.createElement('input');
+    search.type = 'search'; search.className = 'deps-search';
+    search.placeholder = 'Buscar tarea por nombre o WBS…';
+    search.setAttribute('aria-label', 'Buscar entre las tareas candidatas');
+    c2.appendChild(search);
+    c2.appendChild(box(add, 220));
+    const count = document.createElement('div'); count.className = 'deps-count'; count.setAttribute('aria-live', 'polite');
+    c2.appendChild(count);
+    if (hint) c2.appendChild(hint);
+
+    const refresh = () => {
+      const q = norm(search.value.trim());
+      let shown = 0, total = 0;
+      [...add.options].forEach(o => {
+        if (o.disabled) return;
+        total++;
+        const match = !q || norm(o.textContent).includes(q);
+        o.hidden = !match; o.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      const sel = add.selectedOptions.length;
+      count.textContent = (q ? shown + ' de ' + total + ' tareas' : total + ' tareas') + (sel ? ' · ' + sel + ' seleccionada' + (sel > 1 ? 's' : '') : '');
+    };
+    search.addEventListener('input', refresh);
+    add.addEventListener('change', refresh);
+    refresh();
+  }
+
+  function install() {
+    const openBase = openTaskModal;
+    openTaskModal = function (id) {
+      const r = openBase.apply(this, arguments);
+      try { enhance(); } catch (e) { console.error('PTModalLayout', e); }
+      return r;
+    };
+  }
+
+  install();
+  return { enhance };
 })();
 </script>
 
