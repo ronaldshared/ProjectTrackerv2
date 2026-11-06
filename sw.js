@@ -5,7 +5,7 @@
    Para publicar cambios: sube el número de VERSION. */
 'use strict';
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'projectrack-' + VERSION;
 const PREFIX = 'projectrack-';
 
